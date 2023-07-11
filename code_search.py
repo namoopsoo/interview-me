@@ -15,10 +15,14 @@ def build_texts_from_repository(repo_dir):
         lines = path.read_text().splitlines()
         
         dataset.extend(
-            [[{"line_number": i,
+            [{"line_number": i,
                "line": line,
-               "path": str(path.relative_to(repo_dir))}]
+               "path": str(path.relative_to(repo_dir))}
         for i, line in enumerate(lines)
          ]
         )
     return dataset
+
+
+def build_query_dataset(queries, dataset):
+    ...
