@@ -22,7 +22,7 @@ def extract_raw_sentences(df, columns):
     return sentences
 
 
-def current_nohit_list(model_name):
+def get_nohit_job_terms():
     job_terms = [
         "html", "databricks", "python", "css", "api", "postgresql", "database", 
         "mysql", "clojure", "java", "javascript", "angular", "idempotent", "azure",
@@ -31,6 +31,13 @@ def current_nohit_list(model_name):
         "aws", "sagemaker", "nginx", "redis", "cli", "auc", "xgboost", "repository",
         "pyspark", "nlp", "spacy",
         ]
+    return job_terms
+
+
+def current_nohit_list(model_name):
+    """
+    """
+    job_terms = get_nohit_job_terms()
     hits = []
     no_hits = []
     vocabulary = vocabulary_of_model(model_name)
@@ -92,5 +99,28 @@ def make_positive_pairs_from_groups(*clusters):
             dataset.append({"set": combo})
 
     return dataset
+
+
+ 
+def build_my_blurb(experiences_dict):
+    """ Build a list of raw sentences from a dictionary with narratives about past experiences, 
+    """
+
+    sentences = []
+    for project, detail in experiences_dict.items():
+        one_liners = detail.get("one-liners", [])
+        sentences.extend(one_liners)
+
+        stories = detail.get("stories", [])
+        if stories:
+            stories_split = reduce(
+                lambda x, y: x + y, 
+                [re.split(r"((\. )|(\.\n))", x)
+                 for x in stories]
+            )
+            stories_split = [x for x in stories_split
+                             if x and x.strip().strip("\.")]
+            sentences.extend(stories_split)
+    return sentences
 
 
