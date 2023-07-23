@@ -124,3 +124,33 @@ def build_my_blurb(experiences_dict):
     return sentences
 
 
+def filter_pandas_multiple_contains(df, column, vec, case=False):
+    """filter dataframe for column containing any string from list vec given.
+
+    Example
+    >>> vec = [
+    ... {"title": "Software Engineer yea"},
+    ... {"title": "Some Scientist"},
+    ... {"title": "Product Manager"},
+    ... {"title": "Industrial Designer"}
+    ]
+    >>> df = pd.DataFrame.from_records(vec)
+    >>> df
+                       title
+    0  Software Engineer yea
+    1         Some Scientist
+    2        Product Manager
+    3    Industrial Designer
+    >>> import utils as ut
+    >>> ut.filter_pandas_multiple_contains(df, "title", ["engineer", "scientist"])
+                       title
+    0  Software Engineer yea
+    1         Some Scientist
+    """
+    query = " or ".join(
+            [f"{column}.str.contains('{x}', case={case})"
+             for x in vec])
+    return df.query(query)
+
+
+    
