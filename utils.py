@@ -8,13 +8,28 @@ from itertools import combinations
 
 
 def extract_raw_sentences(df, columns):
-    raw_sentences = reduce(lambda x, y: x + y,
-        [re.split(r"[\n\.]", df.iloc[i][col])
+    delimeter_characters_regex = "[·•]"
+    raw_sentences = reduce(
+        lambda x, y: x + y,
+        filter(
+            None,
+
+            [
+                re.split(
+                    r"\. |\.\n|? |?\n", 
+                    re.sub(
+                        delimeter_characters_regex,
+                        ". ",
+                        df.iloc[i][col]
+                        ))
+
                 for i in range(df.shape[0])
                 for col in columns
-                 if not pd.isnull(df.iloc[i][col])
+                if not pd.isnull(df.iloc[i][col])
                 ]
-    )
+
+            )
+        )
     sentences = [
         x.strip().lower()
         for x in (set(raw_sentences) - set([""]))
@@ -115,8 +130,9 @@ def build_my_blurb(experiences_dict):
         if stories:
             stories_split = reduce(
                 lambda x, y: x + y, 
-                [re.split(r"((\. )|(\.\n))", x)
-                 for x in stories]
+                [
+                    re.split(r"\. |\.\n", x)
+                    for x in stories]
             )
             stories_split = [x for x in stories_split
                              if x and x.strip().strip("\.")]
