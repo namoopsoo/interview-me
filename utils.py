@@ -1,9 +1,11 @@
 import pandas as pd
+import torch
+import requests
 import json
 import re
 from functools import reduce
 
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, AutoModel
 from itertools import combinations
 
 
@@ -16,7 +18,7 @@ def extract_raw_sentences(df, columns):
 
             [
                 re.split(
-                    r"\. |\.\n|? |?\n", 
+                    r"\. |\.\n|\? |\?\n", 
                     re.sub(
                         delimeter_characters_regex,
                         ". ",
@@ -30,10 +32,12 @@ def extract_raw_sentences(df, columns):
 
             )
         )
-    sentences = [
-        x.strip().lower()
-        for x in (set(raw_sentences) - set([""]))
-    ]
+    sentences = list(set(
+        [
+            x.strip().lower()
+            for x in (set(raw_sentences) - set([""]))
+        ]
+    ))
     return sentences
 
 
@@ -169,4 +173,41 @@ def filter_pandas_multiple_contains(df, column, vec, case=False):
     return df.query(query)
 
 
-    
+def vec_to_embeddings(model_id, texts, hf_token=None, return_tokenizer_output=False):
+    if hf_token:
+        api_url = f"https://api-inference.huggingface.co/pipeline/feature-extraction/{model_id}"
+        headers = {"Authorization": f"Bearer {hf_token}"}
+
+        response = requests.post(
+            api_url, headers=headers, json={"inputs": texts, "options": {"wait_for_model": True}})
+        output = response.json()
+        return torch.FloatTensor(output)
+    else:
+        # Load AutoModel from huggingface model repository
+        tokenizer = AutoTokenizer.from_pretrained(model_id)
+        model = AutoModel.from_pretrained(model_id)
+
+        # Tokenize sentences
+        encoded_input = tokenizer(texts, padding=True, truncation=True, max_length=128, return_tensors='pt')
+
+        # Compute token embeddings
+        with torch.no_grad():
+            model_output = model(**encoded_input)
+
+        # Perform pooling. In this case, mean pooling
+        sentence_embeddings = mean_pooling(model_output, encoded_input['attention_mask'])
+        if return_tokenizer_output:
+            return encoded_input, sentence_embeddings
+        else:
+            return sentence_embeddings
+
+
+# Mean Pooling - Take attention mask into account for correct averaging
+def mean_pooling(model_output, attention_mask):
+    token_embeddings = model_output[0] # First element of model_output contains all token embeddings
+    input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
+    sum_embeddings = torch.sum(token_embeddings * input_mask_expanded, 1)
+    sum_mask = torch.clamp(input_mask_expanded.sum(1), min=1e-9)
+    return sum_embeddings / sum_mask
+
+
