@@ -3,13 +3,21 @@ import torch
 import requests
 import json
 import re
+import yaml
 from functools import reduce
-
 from transformers import AutoTokenizer, AutoModel
 from itertools import combinations
+from sentence_transformers.util import semantic_search, cos_sim
+
+
+def read_yaml(loc):
+    with open(loc) as fd:
+        return yaml.safe_load(fd)
 
 
 def extract_raw_sentences(df, columns):
+    """Cut up strings in rows into separate sentences, splitting by the given columns and by punctuation.
+    """
     delimeter_characters_regex = "[·•]"
     raw_sentences = reduce(
         lambda x, y: x + y,
@@ -122,7 +130,7 @@ def make_positive_pairs_from_groups(*clusters):
 
  
 def build_my_blurb(experiences_dict):
-    """ Build a list of raw sentences from a dictionary with narratives about past experiences, 
+    """ Build a list of raw sentences from a dictionary with narratives about past experiences,
     """
 
     sentences = []
@@ -185,21 +193,27 @@ def vec_to_embeddings(model_id, texts, hf_token=None, return_tokenizer_output=Fa
     else:
         # Load AutoModel from huggingface model repository
         tokenizer = AutoTokenizer.from_pretrained(model_id)
-        model = AutoModel.from_pretrained(model_id)
 
         # Tokenize sentences
         encoded_input = tokenizer(texts, padding=True, truncation=True, max_length=128, return_tensors='pt')
 
-        # Compute token embeddings
-        with torch.no_grad():
-            model_output = model(**encoded_input)
+        sentence_embeddings = encoded_to_embeddings(encoded_input, model_id)
 
-        # Perform pooling. In this case, mean pooling
-        sentence_embeddings = mean_pooling(model_output, encoded_input['attention_mask'])
         if return_tokenizer_output:
             return encoded_input, sentence_embeddings
         else:
             return sentence_embeddings
+
+
+def encoded_to_embeddings(encoded_input, model_id):
+    # NOTE this assumes encoding was done w/ tokenizer that works with that model.
+    model = AutoModel.from_pretrained(model_id)
+    with torch.no_grad():
+        model_output = model(**encoded_input)
+
+    # Perform pooling. In this case, mean pooling
+    sentence_embeddings = mean_pooling(model_output, encoded_input['attention_mask'])
+    return sentence_embeddings
 
 
 # Mean Pooling - Take attention mask into account for correct averaging
@@ -210,4 +224,7 @@ def mean_pooling(model_output, attention_mask):
     sum_mask = torch.clamp(input_mask_expanded.sum(1), min=1e-9)
     return sum_embeddings / sum_mask
 
+
+def cls_pooling(model_output):
+    return model_output.last_hidden_state[:, 0]
 
