@@ -10,9 +10,42 @@ from itertools import combinations
 from sentence_transformers.util import semantic_search, cos_sim
 
 
+from nltk.corpus import stopwords as sw_nltk
+import spacy
+en = spacy.load("en_core_web_sm")
+sw_spacy = en.Defaults.stop_words
+
+
+def dont_stop(s):
+    """Remove stop words from a sentence
+
+    Example
+    -------
+    >>> s = "So I was talking with someone about you know coffee making methods and umm yea I learned one more"
+    >>> ut.dont_stop(s)
+    'talking know coffee making methods umm yea learned'
+    """
+    stop_words = set(sw_nltk.words("english")) | set(sw_spacy)
+    return " ".join([x for x in s.split() if x.lower() not in stop_words])
+
+
 def read_yaml(loc):
     with open(loc) as fd:
         return yaml.safe_load(fd)
+
+
+def remove_punctuation(s):
+    """Replace punctuation with spaces
+
+    Example
+    ------
+    >>> s = "·And, here: look!? (aws/stuff) • yea "
+    >>> ut.remove_punctuation(s)
+    ' And  here  look    aws stuff    yea '
+    """
+
+    punctuation_characters_regex = "[·•:?!,./()]"
+    return re.sub(punctuation_characters_regex, " ", s)
 
 
 def extract_raw_sentences(df, columns):
