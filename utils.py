@@ -35,17 +35,18 @@ def read_yaml(loc):
 
 
 def remove_punctuation(s):
-    """Replace punctuation with spaces
+    """Replace punctuation with spaces, collapsing consecutive spaces.
 
     Example
     ------
     >>> s = "·And, here: look!? (aws/stuff) • yea "
     >>> ut.remove_punctuation(s)
-    ' And  here  look    aws stuff    yea '
+    'And here look aws stuff yea'
     """
 
-    punctuation_characters_regex = "[·•:?!,./()]"
-    return re.sub(punctuation_characters_regex, " ", s)
+    punctuation_characters_regex = "[\"·•:?!,./()’“]"
+    one = re.sub(punctuation_characters_regex, " ", s)
+    return re.sub(r"\s+", " ", one).strip()
 
 
 def extract_raw_sentences(df, columns):
@@ -261,3 +262,41 @@ def mean_pooling(model_output, attention_mask):
 def cls_pooling(model_output):
     return model_output.last_hidden_state[:, 0]
 
+
+
+def cluster():
+    ...
+
+
+def search(model_id, vec1, vec2, top_k=10):
+    """
+    """
+    # model_id =  "sentence-transformers/all-MiniLM-L6-v2"
+    # some = random.choices(raw_sentences, k=1000)
+    embeddings1 = vec_to_embeddings(model_id, vec1)
+    embeddings2 = vec_to_embeddings(model_id, vec2)
+
+    hits = semantic_search(embeddings1, embeddings2, top_k=top_k)
+    return hits
+
+def search_results_to_pdf(hits, left, right, preview=True):
+    if preview:
+        k = 5
+        n = 5
+    else:
+        k = len(hits)
+        n = len(hits[0])
+    vec = []
+    for i, row in enumerate(hits[:k]):
+        if preview:
+            print(f"({i})", "matching,", left[i][:20], ":")
+            hmm = [
+                    [right[x["corpus_id"]][:20], x["corpus_id"], x["score"]] for x in row[:n] ]
+            print(hmm, "\n\n")
+        vec.extend([{
+          "query": left[i],
+          "result": right[x["corpus_id"]],
+          "score": x["score"],
+        } for x in row])
+
+    return pd.DataFrame.from_records(vec)
